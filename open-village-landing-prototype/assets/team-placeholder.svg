@@ -1,0 +1,14 @@
+<svg width="900" height="1100" viewBox="0 0 900 1100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1100" fill="#F2E7D9"/>
+  <rect x="64" y="64" width="772" height="972" rx="48" fill="url(#paint0_linear_4_1)"/>
+  <circle cx="450" cy="380" r="146" fill="#FFFFFF" fill-opacity="0.78"/>
+  <path d="M220 860C220 702 324 592 450 592C576 592 680 702 680 860V922H220V860Z" fill="#FFFFFF" fill-opacity="0.78"/>
+  <path d="M286 332C314 258 374 212 450 212C526 212 586 258 614 332" stroke="#6F0D16" stroke-opacity="0.18" stroke-width="18" stroke-linecap="round"/>
+  <text x="140" y="170" fill="#6F0D16" fill-opacity="0.72" font-family="Arial, sans-serif" font-size="42" letter-spacing="6">TEAM PHOTO PLACEHOLDER</text>
+  <defs>
+    <linearGradient id="paint0_linear_4_1" x1="112" y1="108" x2="742" y2="1008" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7EF"/>
+      <stop offset="1" stop-color="#D4AF8D"/>
+    </linearGradient>
+  </defs>
+</svg>
