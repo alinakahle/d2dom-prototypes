@@ -689,6 +689,7 @@ section {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  align-items: stretch;
 }
 
 .offer-top {
@@ -696,6 +697,10 @@ section {
   grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
   gap: 32px;
   align-items: start;
+}
+
+.offer-text {
+  max-width: 760px;
 }
 
 .offer-tag {
@@ -729,11 +734,12 @@ section {
 .offer-map-card {
   position: relative;
   overflow: hidden;
-  border-radius: 26px;
+  width: 100%;
+  padding: clamp(12px, 1.4vw, 18px);
+  border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(10, 12, 14, 0.7);
+  background: rgba(10, 12, 14, 0.92);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
-  align-self: stretch;
 }
 
 .offer-map-card::after {
@@ -747,7 +753,12 @@ section {
 .offer-map-image {
   display: block;
   width: 100%;
+  max-width: 100%;
   height: auto;
+  max-height: 760px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 20px;
 }
 
 .offer-actions {
