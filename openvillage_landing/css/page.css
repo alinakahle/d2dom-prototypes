@@ -172,7 +172,7 @@ select {
 
 .hero {
   position: relative;
-  padding: clamp(72px, 10vw, 120px) 0 clamp(64px, 8vw, 100px);
+  padding: clamp(36px, 5vw, 64px) 0 clamp(64px, 8vw, 100px);
   background:
     radial-gradient(ellipse 70% 60% at 60% 40%, rgba(103, 0, 9, 0.18) 0%, transparent 70%),
     var(--bg-deep);
@@ -537,6 +537,90 @@ section {
   text-align: center;
   font-size: 14px;
   color: var(--text-muted);
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.project-card {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.project-card-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+
+.project-card-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.project-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.project-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(103, 0, 9, 0.18);
+  border: 1px solid rgba(103, 0, 9, 0.32);
+  color: #ffb2b2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.project-card h3 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.project-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.project-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.project-card-link::after {
+  content: "→";
+  color: #ff9999;
+}
+
+.projects-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .benefits-grid {
@@ -914,6 +998,7 @@ section {
 
   .types-grid,
   .prices-grid,
+  .projects-grid,
   .benefits-grid,
   .steps-grid {
     grid-template-columns: 1fr 1fr;
@@ -958,6 +1043,7 @@ section {
 
   .types-grid,
   .prices-grid,
+  .projects-grid,
   .benefits-grid,
   .field-row,
   .steps-grid {
