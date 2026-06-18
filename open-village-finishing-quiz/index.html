@@ -3266,6 +3266,7 @@ body.dg-open-village-finishing-quiz-preview {
     max: "https://derevgroup.ru/wp-content/webp-express/webp-images/uploads/2026/02/max-messenger-sign-logo-2.png.webp"
   };
   var LEAD_CAPTURE_TIMEOUT_MS = 8000;
+  var LEAD_ID_STORAGE_KEY = "dg-open-village-finishing-quiz:lead-id";
   var SCROLL_BEHAVIOR = { behavior: "smooth", block: "start" };
   var LEAD_CAPTURE_FIELDS = [
     "submitted_at",
@@ -3303,7 +3304,11 @@ body.dg-open-village-finishing-quiz-preview {
     "result_comment",
     "result_warning",
     "result_source_label",
-    "calculator_source_label"
+    "calculator_source_label",
+    "lead_id",
+    "lead_event",
+    "lead_intent",
+    "discuss_requested_at"
   ];
   var GROUP_DEFINITIONS = {
     common: [
@@ -4372,12 +4377,77 @@ body.dg-open-village-finishing-quiz-preview {
     return String((state.config && state.config.quizVersion) || DEFAULT_QUIZ_VERSION).trim();
   }
 
+  function getLeadIdStorageKey(state) {
+    return [
+      LEAD_ID_STORAGE_KEY,
+      getQuizVersion(state),
+      getCanonicalPageUrl()
+    ].join("::");
+  }
+
+  function generateLeadId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+
+    return [
+      "ovfq",
+      Date.now().toString(36),
+      Math.random().toString(36).slice(2, 10)
+    ].join("-");
+  }
+
+  function ensureLeadId(state) {
+    var storageKey;
+    var storedValue;
+
+    if (state.leadCapture.leadId) {
+      return state.leadCapture.leadId;
+    }
+
+    storageKey = getLeadIdStorageKey(state);
+
+    try {
+      if (window.sessionStorage) {
+        storedValue = String(window.sessionStorage.getItem(storageKey) || "").trim();
+      }
+    } catch (error) {
+      storedValue = "";
+    }
+
+    if (!storedValue) {
+      storedValue = generateLeadId();
+    }
+
+    state.leadCapture.leadId = storedValue;
+
+    try {
+      if (window.sessionStorage) {
+        window.sessionStorage.setItem(storageKey, storedValue);
+      }
+    } catch (error) {
+      // Игнорируем недоступность sessionStorage и продолжаем с id в памяти.
+    }
+
+    return storedValue;
+  }
+
+  function clearStoredLeadId(state) {
+    try {
+      if (window.sessionStorage) {
+        window.sessionStorage.removeItem(getLeadIdStorageKey(state));
+      }
+    } catch (error) {
+      // Ничего не делаем, если storage недоступен.
+    }
+  }
+
   function formatBooleanValue(value) {
     return value ? "TRUE" : "FALSE";
   }
 
-  function buildLeadPayload(state) {
-    return {
+  function buildLeadPayload(state, overrides) {
+    var payload = {
       submitted_at: state.leadCapture.submittedAt,
       quiz_version: getQuizVersion(state),
       page_url: getCanonicalPageUrl(),
@@ -4413,13 +4483,23 @@ body.dg-open-village-finishing-quiz-preview {
       result_comment: state.result && state.result.comment ? state.result.comment : "",
       result_warning: state.result && state.result.warning ? state.result.warning : "",
       result_source_label: state.result && state.result.sourceLabel ? state.result.sourceLabel : "",
-      calculator_source_label: state.result && state.result.calculatorSourceLabel ? state.result.calculatorSourceLabel : ""
+      calculator_source_label: state.result && state.result.calculatorSourceLabel ? state.result.calculatorSourceLabel : "",
+      lead_id: ensureLeadId(state),
+      lead_event: "auto_saved",
+      lead_intent: "none",
+      discuss_requested_at: ""
     };
+
+    Object.keys(overrides || {}).forEach(function (key) {
+      payload[key] = overrides[key];
+    });
+
+    return payload;
   }
 
   function getLeadPayloadKey(payload) {
     return LEAD_CAPTURE_FIELDS.filter(function (field) {
-      return field !== "submitted_at";
+      return ["submitted_at", "lead_event", "lead_intent", "discuss_requested_at"].indexOf(field) === -1;
     })
       .map(function (field) {
         return payload[field] || "";
@@ -4625,12 +4705,6 @@ body.dg-open-village-finishing-quiz-preview {
     payload = buildLeadPayload(state);
     payloadKey = getLeadPayloadKey(payload);
 
-    if (state.leadCapture.payloadKey && state.leadCapture.payloadKey !== payloadKey) {
-      state.leadCapture.submittedAt = new Date().toISOString();
-      payload = buildLeadPayload(state);
-      payloadKey = getLeadPayloadKey(payload);
-    }
-
     signature = JSON.stringify(payload);
 
     if (signature === state.leadCapture.signature && state.leadCapture.status !== "idle") {
@@ -4665,6 +4739,196 @@ body.dg-open-village-finishing-quiz-preview {
     }
 
     return savedMessage;
+  }
+
+  function cleanupDiscussRequestTimer(state) {
+    if (state.discussRequest.timeoutId) {
+      window.clearTimeout(state.discussRequest.timeoutId);
+      state.discussRequest.timeoutId = 0;
+    }
+  }
+
+  function setDiscussRequestState(root, state, status, error) {
+    state.discussRequest.status = status;
+    state.discussRequest.error = error || "";
+
+    if (status === "sent_to_endpoint") {
+      state.actionFeedback = "Запрос на консультацию отправлен.";
+    } else if (status === "pending") {
+      state.actionFeedback = "Отправляем запрос на консультацию...";
+    } else if (status === "timeout" || status === "error") {
+      state.actionFeedback =
+        "Не удалось отправить запрос на консультацию. Свяжитесь с нами по телефону или в мессенджере.";
+    }
+
+    renderApp(root, state);
+  }
+
+  function submitDiscussRequestPayloadViaIframe(root, state, url, payload, requestId) {
+    var targetName = "dg-open-village-finishing-quiz-discuss-target";
+    var iframeId = "dg-open-village-finishing-quiz-discuss-frame";
+    var iframe = document.getElementById(iframeId);
+    var form = document.createElement("form");
+
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = iframeId;
+      iframe.name = targetName;
+      iframe.hidden = true;
+      iframe.setAttribute("aria-hidden", "true");
+      document.body.appendChild(iframe);
+    }
+
+    iframe.onload = function () {
+      if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+        return;
+      }
+
+      cleanupDiscussRequestTimer(state);
+      state.discussRequest.lastUpdatedAt = new Date().toISOString();
+      setDiscussRequestState(root, state, "sent_to_endpoint", "");
+    };
+
+    iframe.onerror = function () {
+      if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+        return;
+      }
+
+      cleanupDiscussRequestTimer(state);
+      state.discussRequest.lastUpdatedAt = new Date().toISOString();
+      setDiscussRequestState(root, state, "error", "Не удалось отправить запрос на консультацию.");
+    };
+
+    state.discussRequest.timeoutId = window.setTimeout(function () {
+      if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+        return;
+      }
+
+      state.discussRequest.lastUpdatedAt = new Date().toISOString();
+      setDiscussRequestState(root, state, "timeout", "Не удалось отправить запрос на консультацию.");
+    }, LEAD_CAPTURE_TIMEOUT_MS);
+
+    form.action = url;
+    form.method = "post";
+    form.target = targetName;
+    form.hidden = true;
+
+    LEAD_CAPTURE_FIELDS.forEach(function (field) {
+      var input = document.createElement("input");
+
+      input.type = "hidden";
+      input.name = field;
+      input.value = payload[field] || "";
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    window.setTimeout(function () {
+      form.remove();
+    }, 0);
+  }
+
+  function submitDiscussRequestPayload(root, state, url, payload) {
+    var requestId = state.discussRequest.requestId + 1;
+    var controller = typeof AbortController === "function" ? new AbortController() : null;
+
+    cleanupDiscussRequestTimer(state);
+    state.discussRequest.requestId = requestId;
+    state.discussRequest.status = "pending";
+    state.discussRequest.error = "";
+    state.discussRequest.lastUpdatedAt = new Date().toISOString();
+    setDiscussRequestState(root, state, "pending", "");
+
+    state.discussRequest.timeoutId = window.setTimeout(function () {
+      if (controller) {
+        controller.abort();
+      }
+
+      if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+        return;
+      }
+
+      state.discussRequest.lastUpdatedAt = new Date().toISOString();
+      setDiscussRequestState(root, state, "timeout", "Не удалось отправить запрос на консультацию.");
+    }, LEAD_CAPTURE_TIMEOUT_MS);
+
+    if (typeof window.fetch === "function" && typeof window.FormData === "function") {
+      window.fetch(url, {
+        method: "POST",
+        mode: "no-cors",
+        body: buildLeadCaptureFormData(payload),
+        keepalive: true,
+        signal: controller ? controller.signal : undefined
+      })
+        .then(function () {
+          if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+            return;
+          }
+
+          cleanupDiscussRequestTimer(state);
+          state.discussRequest.lastUpdatedAt = new Date().toISOString();
+          setDiscussRequestState(root, state, "sent_to_endpoint", "");
+        })
+        .catch(function (error) {
+          if (controller && error && error.name === "AbortError") {
+            return;
+          }
+
+          if (state.discussRequest.requestId !== requestId || state.discussRequest.status !== "pending") {
+            return;
+          }
+
+          cleanupDiscussRequestTimer(state);
+          state.discussRequest.lastUpdatedAt = new Date().toISOString();
+          setDiscussRequestState(root, state, "error", "Не удалось отправить запрос на консультацию.");
+        });
+      return;
+    }
+
+    submitDiscussRequestPayloadViaIframe(root, state, url, payload, requestId);
+  }
+
+  function submitDiscussRequest(root, state) {
+    var url = getLeadCaptureUrl(state);
+    var payload;
+
+    if (!url || !state.result) {
+      state.actionFeedback =
+        "Не удалось отправить запрос на консультацию. Свяжитесь с нами по телефону или в мессенджере.";
+      renderApp(root, state);
+      return;
+    }
+
+    if (state.discussRequest.status === "pending") {
+      return;
+    }
+
+    if (state.discussRequest.status === "sent_to_endpoint") {
+      state.actionFeedback = "Запрос на консультацию отправлен.";
+      renderApp(root, state);
+      return;
+    }
+
+    if (!state.leadCapture.submittedAt) {
+      state.leadCapture.submittedAt = new Date().toISOString();
+    }
+
+    state.discussRequest.requestedAt = new Date().toISOString();
+
+    payload = buildLeadPayload(state, {
+      lead_event: "discuss_request",
+      lead_intent: "discuss",
+      discuss_requested_at: state.discussRequest.requestedAt
+    });
+
+    try {
+      submitDiscussRequestPayload(root, state, url, payload);
+    } catch (error) {
+      cleanupDiscussRequestTimer(state);
+      state.discussRequest.lastUpdatedAt = new Date().toISOString();
+      setDiscussRequestState(root, state, "error", error && error.message ? error.message : String(error));
+    }
   }
 
   function syncNameValidity(input) {
@@ -5278,10 +5542,10 @@ body.dg-open-village-finishing-quiz-preview {
     });
 
     discussButton.addEventListener("click", function () {
-      state.actionFeedback =
-        state.config.actions.discuss + " Предпочтительный канал: " + state.contact.contactMethod + ".";
-      renderApp(root, state);
+      submitDiscussRequest(root, state);
     });
+
+    discussButton.disabled = state.discussRequest.status === "pending" || state.discussRequest.status === "sent_to_endpoint";
 
     resultMetaGrid.appendChild(
       createResultMeta(
@@ -5383,6 +5647,7 @@ body.dg-open-village-finishing-quiz-preview {
       autoAdvanceTimer: null,
       leadCapture: {
         status: "idle",
+        leadId: "",
         submittedAt: "",
         payloadKey: "",
         signature: "",
@@ -5390,9 +5655,18 @@ body.dg-open-village-finishing-quiz-preview {
         requestId: 0,
         timeoutId: 0,
         lastUpdatedAt: ""
+      },
+      discussRequest: {
+        status: "idle",
+        requestedAt: "",
+        error: "",
+        requestId: 0,
+        timeoutId: 0,
+        lastUpdatedAt: ""
       }
     };
 
+    clearStoredLeadId(state);
     renderApp(root, state);
   }
 
