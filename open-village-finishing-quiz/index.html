@@ -1787,6 +1787,13 @@ body.dg-open-village-finishing-quiz-preview {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: flex-end;
+  flex-direction: row-reverse;
+}
+
+@media (max-width: 767px) {
+  .dg-open-village-finishing-quiz__actions {
+    flex-direction: column;
+  }
 }
 
 .dg-open-village-finishing-quiz__contact-badge {
@@ -2459,7 +2466,7 @@ body.dg-open-village-finishing-quiz-preview {
 
     <script>
 (function() {
-  var _EMBEDDED_CONFIG = {
+  var _C = {
   "quizVersion": "open-village-finishing-quiz-v1",
   "leadCapture": {
     "url": "https://script.google.com/macros/s/AKfycbyvWjCTlwYAg66rQaA8ZYTr81Mj8jTpjx6Ljxcmykcd333N171aIYHDxJxeTwKircwN/exec"
@@ -2825,8 +2832,7 @@ body.dg-open-village-finishing-quiz-preview {
     }
   ]
 }
-;
-  var _EMBEDDED_RATES = {
+, _R = {
   "site_setup": {
     "mat": 100000.0,
     "work": 68480.0
@@ -3205,17 +3211,11 @@ body.dg-open-village-finishing-quiz-preview {
   "overhead_expenses_percent": 0.03,
   "transport_expenses_percent": 0.02
 }
-;
-  var _origFetch = window.fetch;
+, _f = window.fetch;
   window.fetch = function(url, opts) {
-    if (typeof url === 'string' && url.indexOf('config') !== -1) {
-      return Promise.resolve({ ok: true, json: function() { return Promise.resolve(_EMBEDDED_CONFIG); } });
-    }
-    if (typeof url === 'string' && url.indexOf('rates') !== -1) {
-      return Promise.resolve({ ok: true, json: function() { return Promise.resolve(_EMBEDDED_RATES); } });
-    }
-    if (_origFetch) return _origFetch.apply(this, arguments);
-    return Promise.reject(new Error('fetch not available'));
+    if (typeof url==='string' && url.indexOf('config')!==-1) return Promise.resolve({ok:true,json:function(){return Promise.resolve(_C);}});
+    if (typeof url==='string' && url.indexOf('rates')!==-1) return Promise.resolve({ok:true,json:function(){return Promise.resolve(_R);}});
+    return _f ? _f.apply(this,arguments) : Promise.reject(new Error('no fetch'));
   };
 })();
 </script>
@@ -5084,8 +5084,8 @@ body.dg-open-village-finishing-quiz-preview {
       goToNextQuestion(root, state);
     });
 
-    actions.appendChild(backButton);
     actions.appendChild(nextButton);
+    actions.appendChild(backButton);
     form.appendChild(stack);
     form.appendChild(actions);
     screen.appendChild(form);
