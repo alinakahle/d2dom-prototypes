@@ -1786,6 +1786,7 @@ body.dg-open-village-finishing-quiz-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: flex-end;
 }
 
 .dg-open-village-finishing-quiz__contact-badge {
@@ -5054,8 +5055,8 @@ body.dg-open-village-finishing-quiz-preview {
       goToNextQuestion(root, state);
     });
 
-    actions.appendChild(nextButton);
     actions.appendChild(backButton);
+    actions.appendChild(nextButton);
     form.appendChild(stack);
     form.appendChild(actions);
     screen.appendChild(form);
