@@ -3266,6 +3266,7 @@ body.dg-open-village-finishing-quiz-preview {
     max: "https://derevgroup.ru/wp-content/webp-express/webp-images/uploads/2026/02/max-messenger-sign-logo-2.png.webp"
   };
   var LEAD_CAPTURE_TIMEOUT_MS = 8000;
+  var DISCUSS_REQUEST_TIMEOUT_MS = 20000;
   var LEAD_ID_STORAGE_KEY = "dg-open-village-finishing-quiz:lead-id";
   var SCROLL_BEHAVIOR = { behavior: "smooth", block: "start" };
   var LEAD_CAPTURE_FIELDS = [
@@ -4806,7 +4807,7 @@ body.dg-open-village-finishing-quiz-preview {
 
       state.discussRequest.lastUpdatedAt = new Date().toISOString();
       setDiscussRequestState(root, state, "timeout", "Не удалось отправить запрос на консультацию.");
-    }, LEAD_CAPTURE_TIMEOUT_MS);
+    }, DISCUSS_REQUEST_TIMEOUT_MS);
 
     form.action = url;
     form.method = "post";
@@ -4851,7 +4852,7 @@ body.dg-open-village-finishing-quiz-preview {
 
       state.discussRequest.lastUpdatedAt = new Date().toISOString();
       setDiscussRequestState(root, state, "timeout", "Не удалось отправить запрос на консультацию.");
-    }, LEAD_CAPTURE_TIMEOUT_MS);
+    }, DISCUSS_REQUEST_TIMEOUT_MS);
 
     if (typeof window.fetch === "function" && typeof window.FormData === "function") {
       window.fetch(url, {
